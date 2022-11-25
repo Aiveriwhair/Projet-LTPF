@@ -10,6 +10,7 @@ Dans un premier temps, on considérera un version simplifiée de WHILEb nommée 
 — que la condition d’un if ou d’un while est toujours constituée d’une variable seulement
 — que le membre droit d’une affectation peut être : soit 0, soit, 1, soit une autre variable.
 — Enfin on se contentera de 4 variables booléennes a, b, c et d.
+
 On pourrait ainsi écrire un programme WHILEb-- comme :
   a := 1 ;
   b := 1 ;
@@ -33,3 +34,23 @@ type expr = Var of var | Zero | Un;;
 
 type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog * prog | While of expr * prog;;
 
+(*Donner une grammaire décrivant le langage WHILEb-- sans recursivité gauche)
+
+(*
+
+  Grammaire:
+  
+  
+  C :: '1' | '0' 
+  V :: 'a' | 'b' | 'c' | 'd'
+  A :: V.':'.'='.(CV)
+  I :: 'w'.'('.V.')'.'{'.(SI).'}' | 'i'.'('.V.')'.'{'.(SI).'}'.'{'.(SI).'}'
+  P :: ε | I | A.P
+  S :: A.';'.S | A.';'.I.S | I.S |ε
+  CV:: C | V
+  SI:: S | I
+
+*)
+
+
+  
