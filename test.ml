@@ -26,7 +26,7 @@ On pourrait ainsi écrire un programme WHILEb-- comme :
   }   
 *)
 
-(*Définir une hiérarchie de types OCaml permettant de représenter tous les programmes admis par WHILEb--.*)
+(*Question 1.1.1*)
 
 type var = A | B | C | D;;
 
@@ -34,11 +34,11 @@ type expr = Var of var | Zero | Un;;
 
 type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog * prog | While of expr * prog;;
 
-(*Donner une grammaire décrivant le langage WHILEb-- sans recursivité gauche)
+(*Donner une grammaire décrivant le langage WHILEb-- sans recursivité gauche)*)
 
-(*
+(* Question 1.1.2 - 1.1.3
 
-  Grammaire:
+  Grammaire du langage WHILEb--:
   
   
   C :: '1' | '0' 
@@ -48,9 +48,22 @@ type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog 
   P :: ε | I | A.P
   S :: A.';'.S | A.';'.I.S | I.S |ε
   CV:: C | V
-  SI:: S | I
+  SI:: S | I 
 
 *)
+
+
+(*Implémenter un analyseur syntaxique en OCaml pour la grammaire du langage
+WHILEb--. Utiliser des combinateurs d'analyseurs *)
+
+
+
+
+
+
+
+
+
 
 
   
