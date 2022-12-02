@@ -1,0 +1,545 @@
+OCaml version 4.14.0
+Enter #help;; for help.
+
+Findlib has been successfully loaded. Additional directives:
+  #require "package";;      to load a package
+  #list;;                   to list the available packages
+  #camlp4o;;                to load camlp4 (standard syntax)
+  #camlp4r;;                to load camlp4 (revised syntax)
+  #predicates "p,q,...";;   to set these predicates
+  Topfind.reset();;         to force that packages will be reloaded
+  #thread;;                 to enable threads
+
+# type var = A | B | C | D;;
+type var = A | B | C | D
+# type expr = Var of var | Zero | Un;;
+type expr = Var of var | Zero | Un
+# type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog * prog | While of expr * prog;;
+type prog =
+    Nop
+  | Affect of var * expr
+  | Seq of prog * prog
+  | If of expr * prog * prog
+  | While of expr * prog
+# type analist = char list -> char list;;
+type analist = char list -> char list
+# type 'term analist = 'term list -> 'term list;;
+type 'term analist = 'term list -> 'term list
+# exception Echec;;
+exception Echec
+# let terminal c : analist = fun l -> match l with
+  | x :: l when x = c -> l
+  | _ -> raise Echec;;
+Line 1, characters 17-24:
+1 | let terminal c : analist = fun l -> match l with
+                     ^^^^^^^
+Error: The type constructor analist expects 1 argument(s),
+       but is here applied to 0 argument(s)
+# let terminal_cond (p : 'term -> bool) : analist = function
+  | x :: l when p x -> l
+  | _ -> raise Echec;;
+Line 1, characters 40-47:
+1 | let terminal_cond (p : 'term -> bool) : analist = function
+                                            ^^^^^^^
+Error: The type constructor analist expects 1 argument(s),
+       but is here applied to 0 argument(s)
+# type analist = char list -> char list;;
+type analist = char list -> char list
+# let terminal c : analist = fun l -> match l with
+  | x :: l when x = c -> l
+  | _ -> raise Echec;;
+val terminal : char -> analist = <fun>
+# let terminal_cond (p : 'term -> bool) : analist = function
+  | x :: l when p x -> l
+  | _ -> raise Echec;;
+val terminal_cond : (char -> bool) -> analist = <fun>
+# let epsilon : analist = fun l -> l;;
+val epsilon : analist = <fun>
+# let (-->) (a1 : analist) (a2 : analist) : analist =
+  fun l -> let l = a1 l in a2 l;;
+val ( --> ) : analist -> analist -> analist = <fun>
+# let (-|) (a1 : analist) (a2 : analist) : analist =
+  fun l -> try a1 l with Echec -> a2 l;;
+val ( -| ) : analist -> analist -> analist = <fun>
+# type ('res, 'term) ranalist = 'term list -> 'res * 'term list;;
+type ('res, 'term) ranalist = 'term list -> 'res * 'term list
+# let epsilon_res (info : 'res) : ('res, 'term) ranalist =
+  fun l -> (info, l);;
+val epsilon_res : 'res -> ('res, 'term) ranalist = <fun>
+# let terminal_res (f : 'term -> 'res option) : ('res, 'term) ranalist =
+  fun l -> match l with
+  | x :: l -> (match f x with Some y -> y, l | None -> raise Echec)
+  | _ -> raise Echec;;
+val terminal_res : ('term -> 'res option) -> ('res, 'term) ranalist = <fun>
+# let ( -+>) (a1 : 'term analist) (a2 : ('res, 'term) ranalist) :
+      ('res, 'term) ranalist =
+  fun l -> let l = a1 l in a2 l;;
+Line 1, characters 17-30:
+1 | let ( -+>) (a1 : 'term analist) (a2 : ('res, 'term) ranalist) :
+                     ^^^^^^^^^^^^^
+Error: The type constructor analist expects 0 argument(s),
+       but is here applied to 1 argument(s)
+# type 'term analist = 'term list -> 'term list;;
+type 'term analist = 'term list -> 'term list
+# let ( -+>) (a1 : 'term analist) (a2 : ('res, 'term) ranalist) :
+      ('res, 'term) ranalist =
+  fun l -> let l = a1 l in a2 l;;
+val ( -+> ) :
+  'term analist -> ('res, 'term) ranalist -> ('res, 'term) ranalist = <fun>
+# let (++>) (a1 : ('resa, 'term) ranalist) (a2 : 'resa -> ('resb, 'term) ranalist) :
+      ('resb, 'term) ranalist =
+  fun l -> let (x, l) = a1 l in a2 x l;;
+val ( ++> ) :
+  ('resa, 'term) ranalist ->
+  ('resa -> ('resb, 'term) ranalist) -> ('resb, 'term) ranalist = <fun>
+# let (+|) (a1 : ('res, 'term) ranalist) (a2 : ('res, 'term) ranalist) :
+      ('res, 'term) ranalist =
+  fun l -> try a1 l with Echec -> a2 l;;
+val ( +| ) :
+  ('res, 'term) ranalist -> ('res, 'term) ranalist -> ('res, 'term) ranalist =
+  <fun>
+# let (<<) f g = fun x -> f (g x);;
+val ( << ) : ('a -> 'b) -> ('c -> 'a) -> 'c -> 'b = <fun>
+# let (>>) f g = fun x -> g (f x);;
+val ( >> ) : ('a -> 'b) -> ('b -> 'c) -> 'a -> 'c = <fun>
+# let star_pipe_R2L (a : ('r -> 'r, 'term) ranalist) : ('r -> 'r, 'term) ranalist =
+  let rec a_star = fun l ->
+    ( ( a ++> fun f -> a_star ++> fun f_star -> epsilon_res (f << f_star) )
+      +|
+        epsilon_res (fun x -> x)
+    ) l
+  in a_star;;
+val star_pipe_R2L : ('r -> 'r, 'term) ranalist -> ('r -> 'r, 'term) ranalist =
+  <fun>
+# let star_R2L (a : ('r -> 'r, 'term) ranalist) (r0 : 'r) : ('r, 'term) ranalist =
+  star_pipe_R2L a ++> fun f -> epsilon_res (f r0);;
+val star_R2L : ('r -> 'r, 'term) ranalist -> 'r -> ('r, 'term) ranalist =
+  <fun>
+# let star_list (a : ('a, 'term) ranalist) : ('a list, 'term) ranalist =
+  star_R2L (a ++> fun x -> epsilon_res (fun l -> x :: l)) [];;
+val star_list : ('a, 'term) ranalist -> ('a list, 'term) ranalist = <fun>
+# let star_pipe_L2R (a : ('r -> 'r, 'term) ranalist) : ('r -> 'r, 'term) ranalist =
+  let rec a_star = fun l ->
+    ( ( a ++> fun f -> a_star ++> fun f_star -> epsilon_res (f >> f_star) )
+      +|
+        epsilon_res (fun x -> x)
+    ) l
+  in a_star;;
+val star_pipe_L2R : ('r -> 'r, 'term) ranalist -> ('r -> 'r, 'term) ranalist =
+  <fun>
+# let star_L2R (r0 : 'r) (a : ('r -> 'r, 'term) ranalist) : ('r, 'term) ranalist =
+  star_pipe_L2R a ++> fun f -> epsilon_res (r0 |> f);;
+val star_L2R : 'r -> ('r -> 'r, 'term) ranalist -> ('r, 'term) ranalist =
+  <fun>
+# let pa_C  =
+                      (terminal '0') -| ( terminal '1');;
+val pa_C : analist/2 = <fun>
+# let pa_V=
+     terminal 'a' -| terminal 'b' -| terminal 'c' -| terminal 'd';;
+val pa_V : analist/2 = <fun>
+# let pa_CV = fun l -> l|>
+    pa_C -| pa_V;;
+val pa_CV : char list -> char list = <fun>
+# let pa_A = fun l -> l|>
+  (pa_V --> terminal ':' --> terminal '=' --> pa_CV);;
+val pa_A : char list -> char list = <fun>
+# let rec pa_I = fun l -> l|>
+   terminal 'w' --> terminal '(' --> pa_V --> terminal ')'--> terminal '{' --> pa_SI --> terminal '}'
+   -|
+     terminal 'i' --> terminal '(' --> pa_V --> terminal ')' --> terminal '{' --> pa_SI --> terminal '}'
+   --> terminal '{' --> pa_SI --> terminal '}'
+and  pa_SI = fun l -> l|>  pa_S --> pa_I
+and  pa_S = fun l -> l|>
+   (pa_A  --> terminal ';' --> pa_S) -|
+   (pa_A --> terminal ';' --> pa_I --> pa_S) -|
+     ( pa_I --> pa_S);;
+val pa_I : analist/2 = <fun>
+val pa_SI : analist/2 = <fun>
+val pa_S : analist/2 = <fun>
+# let pr_C : (int,char) ranalist = fun l ->
+  l|>
+  (terminal '1' -+> epsilon_res 1) +| (terminal '0' -+> epsilon_res 0);;
+val pr_C : (int, char) ranalist = <fun>
+# let pr_V : (char,char) ranalist = fun l ->
+ l|>
+  (terminal 'a' -+> epsilon_res 'a') +| (terminal 'b'  -+> epsilon_res 'b') +|
+    (terminal 'c'  -+> epsilon_res 'c') +| (terminal 'd'  -+> epsilon_res 'c');;
+val pr_V : (char, char) ranalist = <fun>
+# let pr_CV : ('term,char) ranalist  = fun l -> l|>
+                                                 pr_C +| pr_V;;
+Line 2, characters 57-61:
+2 |                                                  pr_C +| pr_V;;
+                                                             ^^^^
+Error: This expression has type
+         (char, char) ranalist = char list -> char * char list
+       but an expression was expected of type
+         (int, char) ranalist = char list -> int * char list
+       Type char is not compatible with type int 
+# let pr_C : (int,char) ranalist = fun l ->
+  l|>
+  (terminal Un -+> epsilon_res Un) +| (terminal Zero -+> epsilon_res Zero);;
+Line 3, characters 12-14:
+3 |   (terminal Un -+> epsilon_res Un) +| (terminal Zero -+> epsilon_res Zero);;
+                ^^
+Error: This expression has type expr but an expression was expected of type
+         char
+# let pr_C : (int,char) ranalist = fun l ->
+  l|>
+  (terminal '1' -+> epsilon_res Un) +| (terminal Zero -+> epsilon_res Zero);;
+Line 3, characters 49-53:
+3 |   (terminal '1' -+> epsilon_res Un) +| (terminal Zero -+> epsilon_res Zero);;
+                                                     ^^^^
+Error: This expression has type expr but an expression was expected of type
+         char
+# let pr_C = fun l ->
+  l|>
+  (terminal '1' -+> epsilon_res Un) +| (terminal '0' -+> epsilon_res Zero);;
+val pr_C : char list -> expr * char list = <fun>
+# let pr_C : (expr,char) ranalist = fun l ->
+  l|>
+  (terminal '1' -+> epsilon_res Un) +| (terminal '0' -+> epsilon_res Zero);;
+val pr_C : (expr, char) ranalist = <fun>
+# let pr_V = fun l ->
+ l|>
+  (terminal 'a' -+> epsilon_res Var(a)) +| (terminal 'b'  -+> epsilon_res 'b') +|
+    (terminal 'c'  -+> epsilon_res 'c') +| (terminal 'd'  -+> epsilon_res 'c');;
+Line 3, characters 32-35:
+3 |   (terminal 'a' -+> epsilon_res Var(a)) +| (terminal 'b'  -+> epsilon_res 'b') +|
+                                    ^^^
+Error: The constructor Var expects 1 argument(s),
+       but is applied here to 0 argument(s)
+# let pr_V = fun l ->
+ l|>
+  (terminal 'a' -+> epsilon_res (Var(a))) +| (terminal 'b'  -+> epsilon_res 'b') +|
+    (terminal 'c'  -+> epsilon_res 'c') +| (terminal 'd'  -+> epsilon_res 'c');;
+Line 3, characters 37-38:
+3 |   (terminal 'a' -+> epsilon_res (Var(a))) +| (terminal 'b'  -+> epsilon_res 'b') +|
+                                         ^
+Error: Unbound value a
+# let pr_V = fun l ->
+ l|>
+  (terminal 'a' -+> epsilon_res (Var(A))) +| (terminal 'b'  -+> epsilon_res 'b') +|
+    (terminal 'c'  -+> epsilon_res 'c') +| (terminal 'd'  -+> epsilon_res 'c');;
+Line 3, characters 45-80:
+3 |   (terminal 'a' -+> epsilon_res (Var(A))) +| (terminal 'b'  -+> epsilon_res 'b') +|
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type
+         (char, char) ranalist = char list -> char * char list
+       but an expression was expected of type
+         (expr, char) ranalist = char list -> expr * char list
+       Type char is not compatible with type expr 
+# let pr_V = fun l ->
+ l|>
+  (terminal 'a' -+> epsilon_res (Var(A))) +| (terminal 'b'  -+> epsilon_res Var(B)) +|
+    (terminal 'c'  -+> epsilon_res Var(C)) +| (terminal 'd'  -+> epsilon_res Var(D));;
+Line 3, characters 76-79:
+3 |   (terminal 'a' -+> epsilon_res (Var(A))) +| (terminal 'b'  -+> epsilon_res Var(B)) +|
+                                                                                ^^^
+Error: The constructor Var expects 1 argument(s),
+       but is applied here to 0 argument(s)
+# let pr_V = fun l ->
+ l|>
+  (terminal 'a' -+> epsilon_res (Var(A))) +| (terminal 'b'  -+> epsilon_res (Var(B))) +|
+    (terminal 'c'  -+> epsilon_res Var(C)) +| (terminal 'd'  -+> epsilon_res Var(D));;
+Line 4, characters 35-38:
+4 |     (terminal 'c'  -+> epsilon_res Var(C)) +| (terminal 'd'  -+> epsilon_res Var(D));;
+                                       ^^^
+Error: The constructor Var expects 1 argument(s),
+       but is applied here to 0 argument(s)
+# let pr_V = fun l ->
+ l|>
+  (terminal 'a' -+> epsilon_res (Var(A))) +| (terminal 'b'  -+> epsilon_res (Var(B))) +|
+    (terminal 'c'  -+> epsilon_res (Var(C))) +| (terminal 'd'  -+> epsilon_res (Var(D)));;
+val pr_V : char list -> expr * char list = <fun>
+# let pr_V : (expr,char) ranalist = fun l ->
+ l|>
+  (terminal 'a' -+> epsilon_res (Var(A))) +| (terminal 'b'  -+> epsilon_res (Var(B))) +|
+    (terminal 'c'  -+> epsilon_res (Var(C))) +| (terminal 'd'  -+> epsilon_res (Var(D)));;
+val pr_V : (expr, char) ranalist = <fun>
+# let pr_CV : (expr,char) ranalist  = fun l -> l|>
+                                                 pr_C +| pr_V;;
+val pr_CV : (expr, char) ranalist = <fun>
+# let pr_A  = fun l -> l|>
+                      (pr_V ++> terminal ':' ++> terminal '=' -+> pr_CV);;
+Line 2, characters 32-44:
+2 |                       (pr_V ++> terminal ':' ++> terminal '=' -+> pr_CV);;
+                                    ^^^^^^^^^^^^
+Error: This expression has type analist/2 = char list -> char list
+       but an expression was expected of type expr -> ('a, char) ranalist
+       Type char list is not compatible with type expr 
+       Hint: The type analist has been defined multiple times in this
+         toplevel session. Some toplevel values still refer to old versions
+         of this type. Did you try to redefine them?
+# let pr_A  = fun l -> l|>
+                      (pr_V ++> terminal_res ':' ++> terminal '=' -+> pr_CV);;
+Line 2, characters 45-48:
+2 |                       (pr_V ++> terminal_res ':' ++> terminal '=' -+> pr_CV);;
+                                                 ^^^
+Error: This expression has type char but an expression was expected of type
+         'a -> 'b option
+# let pr_A = fun l -> l|>
+     (Affect of pr_V * pr_CV);;
+Line 2, characters 13-15:
+2 |      (Affect of pr_V * pr_CV);;
+                 ^^
+Error: Syntax error: ')' expected
+Line 2, characters 5-6:
+2 |      (Affect of pr_V * pr_CV);;
+         ^
+  This '(' might be unmatched
+# let pr_A = fun l -> l|>
+     Affect(pr_V * pr_CV);;
+Line 2, characters 5-25:
+2 |      Affect(pr_V * pr_CV);;
+         ^^^^^^^^^^^^^^^^^^^^
+Error: This expression should not be a constructor, the expected type is
+       'a -> 'b
+# let pr_A = fun l -> l|>
+     Affect(pr_V ,pr_CV);;
+Line 2, characters 5-24:
+2 |      Affect(pr_V ,pr_CV);;
+         ^^^^^^^^^^^^^^^^^^^
+Error: This expression should not be a constructor, the expected type is
+       'a -> 'b
+# let pr_CV : (expr,char) ranalist  = fun l -> l|>
+                                                pr_C +| pr_V;;
+val pr_CV : (expr, char) ranalist = <fun>
+# let pr_A = fun l -> l|>
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V ++> terminal_res ':' ++> terminal '=' -+> pr_CV);;
+Line 6, characters 76-78:
+6 |                       (pr_V ++> terminal_res ':' ++> terminal '=' -+> pr_CV);;
+                                                                                ^^
+Error: Syntax error
+# let pr_A = fun l -> l|>;;
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V ++> terminal_res ':' ++> terminal '=' -+> pr_CV);;
+Line 1, characters 23-25:
+1 | let pr_A = fun l -> l|>;;
+                           ^^
+Error: Syntax error
+# Line 5, characters 45-48:
+5 |                       (pr_V ++> terminal_res ':' ++> terminal '=' -+> pr_CV);;
+                                                 ^^^
+Error: This expression has type char but an expression was expected of type
+         'a -> 'b option
+# let terminal c : analist = fun l -> match l with
+  | x :: l when x = c -> l
+  | _ -> raise Echec;;
+Line 1, characters 17-24:
+1 | let terminal c : analist = fun l -> match l with
+                     ^^^^^^^
+Error: The type constructor analist expects 1 argument(s),
+       but is here applied to 0 argument(s)
+# type analist = char list -> char list;;
+type analist = char list -> char list
+# let terminal c : analist = fun l -> match l with
+  | x :: l when x = c -> l
+  | _ -> raise Echec;;
+val terminal : char -> analist = <fun>
+# let terminal_cond (p : 'term -> bool) : analist = function
+  | x :: l when p x -> l
+  | _ -> raise Echec;;
+val terminal_cond : (char -> bool) -> analist = <fun>
+# let pr_A = fun l -> l|>;;
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V ++> terminal_res(terminal_cond ':') ++> terminal '=' -+> pr_CV);;
+Line 1, characters 23-25:
+1 | let pr_A = fun l -> l|>;;
+                           ^^
+Error: Syntax error
+# Line 5, characters 59-62:
+5 |                       (pr_V ++> terminal_res(terminal_cond ':') ++> terminal '=' -+> pr_CV);;
+                                                               ^^^
+Error: This expression has type char but an expression was expected of type
+         char -> bool
+# let pr_A = fun l -> l|>;;
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V ++> terminal_res (terminal_cond ':') ++> terminal '=' -+> pr_CV);;
+Line 1, characters 23-25:
+1 | let pr_A = fun l -> l|>;;
+                           ^^
+Error: Syntax error
+# Line 5, characters 60-63:
+5 |                       (pr_V ++> terminal_res (terminal_cond ':') ++> terminal '=' -+> pr_CV);;
+                                                                ^^^
+Error: This expression has type char but an expression was expected of type
+         char -> bool
+# let pr_A = fun l -> l|>;;
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V ++> terminal_res (terminal_cond ':' true) ++> terminal '=' -+> pr_CV);;
+Line 1, characters 23-25:
+1 | let pr_A = fun l -> l|>;;
+                           ^^
+Error: Syntax error
+# Line 5, characters 60-63:
+5 |                       (pr_V ++> terminal_res (terminal_cond ':' true) ++> terminal '=' -+> pr_CV);;
+                                                                ^^^
+Error: This expression has type char but an expression was expected of type
+         char -> bool
+# let pr_A = fun l -> l|>;;
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V ++> terminal_res ':'  ++> terminal '=' -+> pr_CV);;
+Line 1, characters 23-25:
+1 | let pr_A = fun l -> l|>;;
+                           ^^
+Error: Syntax error
+# Line 5, characters 45-48:
+5 |                       (pr_V ++> terminal_res ':'  ++> terminal '=' -+> pr_CV);;
+                                                 ^^^
+Error: This expression has type char but an expression was expected of type
+         'a -> 'b option
+# let pr_A = fun l -> l|>;;
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V ++> terminal ':'  ++> terminal '=' -+> pr_CV);;
+Line 1, characters 23-25:
+1 | let pr_A = fun l -> l|>;;
+                           ^^
+Error: Syntax error
+# Line 5, characters 32-44:
+5 |                       (pr_V ++> terminal ':'  ++> terminal '=' -+> pr_CV);;
+                                    ^^^^^^^^^^^^
+Error: This expression has type analist = char list -> char list
+       but an expression was expected of type expr -> ('a, char) ranalist
+       Type char list is not compatible with type expr 
+# let (+->) (a1 : ('res,'term) ranalist ) (a2 : 'term analist) : ('res, 'term) ranalist =
+  fun l -> let l = a1 l in a2 l;;
+Line 1, characters 46-59:
+1 | let (+->) (a1 : ('res,'term) ranalist ) (a2 : 'term analist) : ('res, 'term) ranalist =
+                                                  ^^^^^^^^^^^^^
+Error: The type constructor analist expects 0 argument(s),
+       but is here applied to 1 argument(s)
+# type ('res, 'term) ranalist = 'term list -> 'res * 'term list;;
+type ('res, 'term) ranalist = 'term list -> 'res * 'term list
+# let (+->) (a1 : ('res,'term) ranalist ) (a2 : 'term analist) : ('res, 'term) ranalist =
+  fun l -> let l = a1 l in a2 l;;
+Line 1, characters 46-59:
+1 | let (+->) (a1 : ('res,'term) ranalist ) (a2 : 'term analist) : ('res, 'term) ranalist =
+                                                  ^^^^^^^^^^^^^
+Error: The type constructor analist expects 0 argument(s),
+       but is here applied to 1 argument(s)
+# type 'term analist = 'term list -> 'term list;;
+type 'term analist = 'term list -> 'term list
+# let (+->) (a1 : ('res,'term) ranalist ) (a2 : 'term analist) : ('res, 'term) ranalist =
+  fun l -> let l = a1 l in a2 l;;
+Line 2, characters 30-31:
+2 |   fun l -> let l = a1 l in a2 l;;
+                                  ^
+Error: This expression has type 'res * 'term list
+       but an expression was expected of type 'term list
+# let (+->) (a1 : ('res,'term) ranalist ) (a2 : 'term analist) : ('res, 'term) ranalist =
+  fun l -> let l = a1 l in a2 l;;
+Line 2, characters 30-31:
+2 |   fun l -> let l = a1 l in a2 l;;
+                                  ^
+Error: This expression has type 'res * 'term list
+       but an expression was expected of type 'term list
+# let ( -+>) (a1 : 'term analist) (a2 : ('res, 'term) ranalist) :
+      ('res, 'term) ranalist =
+  fun l -> let l = a1 l in a2 l;;
+val ( -+> ) :
+  'term analist -> ('res, 'term) ranalist -> ('res, 'term) ranalist = <fun>
+# let (+->) (a1 : ('res,'term) ranalist ) (a2 : 'term analist) : ('res, 'term) ranalist =
+  fun l -> let (rep,l) = a1 l in let l =a2 l in (rep,l);;
+val ( +-> ) :
+  ('res, 'term) ranalist -> 'term analist -> ('res, 'term) ranalist = <fun>
+# let pr_A = fun l -> l|>;;
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V +-> terminal ':'  ++> terminal '=' -+> pr_CV);;
+Line 1, characters 23-25:
+1 | let pr_A = fun l -> l|>;;
+                           ^^
+Error: Syntax error
+# Line 5, characters 50-62:
+5 |                       (pr_V +-> terminal ':'  ++> terminal '=' -+> pr_CV);;
+                                                      ^^^^^^^^^^^^
+Error: This expression has type analist/2 = char list -> char list
+       but an expression was expected of type expr -> ('a, char) ranalist/2
+       Type char list is not compatible with type expr 
+       Hint: The types ranalist and analist have been defined multiple times
+         in this toplevel session. Some toplevel values still refer to old
+         versions of those types. Did you try to redefine them?
+# let pr_A = fun l -> l|>;;
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V +-> terminal ':'  --> terminal '=' -+> pr_CV);;
+Line 1, characters 23-25:
+1 | let pr_A = fun l -> l|>;;
+                           ^^
+Error: Syntax error
+# Line 5, characters 23-44:
+5 |                       (pr_V +-> terminal ':'  --> terminal '=' -+> pr_CV);;
+                           ^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type
+         (expr, char) ranalist = char list -> expr * char list
+       but an expression was expected of type
+         analist/2 = char list -> char list
+       Type expr * char list is not compatible with type char list 
+       Hint: The type analist has been defined multiple times in this
+         toplevel session. Some toplevel values still refer to old versions
+         of this type. Did you try to redefine them?
+# let pr_A = fun l -> l|>;;
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V +-> terminal ':'  +-> terminal '=' -+> pr_CV);;
+Line 1, characters 23-25:
+1 | let pr_A = fun l -> l|>;;
+                           ^^
+Error: Syntax error
+# Line 5, characters 23-62:
+5 |                       (pr_V +-> terminal ':'  +-> terminal '=' -+> pr_CV);;
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type
+         (expr, char) ranalist = char list -> expr * char list
+       but an expression was expected of type
+         char analist = char list -> char list
+       Type expr * char list is not compatible with type char list 
+# let pr_A = fun l -> l|>;;
+    
+
+ 
+let pr_A  = fun l -> l|>
+                      (pr_V +-> terminal ':'  +-> terminal '=' ++> pr_CV);;
+Line 1, characters 23-25:
+1 | let pr_A = fun l -> l|>;;
+                           ^^
+Error: Syntax error
+# Line 5, characters 67-72:
+5 |                       (pr_V +-> terminal ':'  +-> terminal '=' ++> pr_CV);;
+                                                                       ^^^^^
+Error: This expression has type
+         (expr, char) ranalist/2 = char list -> expr * char list
+       but an expression was expected of type expr -> ('a, char) ranalist/2
+       Type char list is not compatible with type expr 
+       Hint: The type ranalist has been defined multiple times in this
+         toplevel session. Some toplevel values still refer to old versions
+         of this type. Did you try to redefine them?
+# 
