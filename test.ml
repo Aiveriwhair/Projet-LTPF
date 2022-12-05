@@ -57,18 +57,18 @@ type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog 
 WHILEb--. Utiliser des combinateurs d'analyseurs *)
 
 (* Le type des aspirateurs de listes de caractères  *)
-type analist = char list -> char list
+type analist = char list -> char list;;
 
-type 'term analist = 'term list -> 'term list
-exception Echec
+type 'term analist2 = 'term list -> 'term list
+exception Echec;;
 
 (* terminal constant *)
 let terminal c : analist = fun l -> match l with
   | x :: l when x = c -> l
-  | _ -> raise Echec
+  | _ -> raise Echec;;
 
 (* terminal conditionnel *)
-let terminal_cond (p : 'term -> bool) : analist = function
+let terminal_cond (p : 'term -> bool) : analist2 = function
   | x :: l when p x -> l
   | _ -> raise Echec
 
@@ -103,12 +103,12 @@ let terminal_res (f : 'term -> 'res option) : ('res, 'term) ranalist =
   | _ -> raise Echec
 
 (* a1 sans résultat suivi de a2 donnant un résultat *)
-let ( -+>) (a1 : 'term analist) (a2 : ('res, 'term) ranalist) :
+let ( -+>) (a1 : 'term analist2) (a2 : ('res, 'term) ranalist) :
       ('res, 'term) ranalist =
   fun l -> let l = a1 l in a2 l 
 
 
-let (+->) (a1 : ('res,'term) ranalist ) (a2 : 'term analist) : ('res, 'term) ranalist =
+let (+->) (a1 : ('res,'term) ranalist ) (a2 : 'term analist2) : ('res, 'term) ranalist =
   fun l -> let (rep,l) = a1 l in let l =a2 l in (rep,l);;
 
 let (++>) (a1 : ('resa, 'term) ranalist) (a2 : 'resa -> ('resb, 'term) ranalist) :
@@ -238,5 +238,5 @@ let pr_V : (expr,char) ranalist = fun l ->
 
  
 let pr_A  = fun l -> l|>
-                      (pr_V +-> terminal ':'  +-> terminal '=' ++> (fun v -> pr_CV)) ;;
+                      (pr_V --> terminal ':' --> terminal '=' -->( fun x -> pr_CV --> epsilon_res (fun y -> Affect(x,y)))) ;;
 
