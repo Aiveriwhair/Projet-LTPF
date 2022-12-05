@@ -65,7 +65,7 @@ exception Echec
 (* terminal constant *)
 let terminal c : analist = fun l -> match l with
   | x :: l when x = c -> l
-  | _ -> raise Echec
+  | _ -> raise Echec 
 
 (* terminal conditionnel *)
 let terminal_cond (p : 'term -> bool) : analist = function
@@ -238,6 +238,6 @@ let pr_V : (expr,char) ranalist = fun l ->
     
 
  
-let pr_A  = fun l -> l|>
+let pr_A : (prog,char) ranalist  = fun l -> l|>
                       (pr_V +-> terminal ':'  +-> terminal '=' ++> (fun v -> pr_CV)) ;;
 
