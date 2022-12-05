@@ -139,4 +139,15 @@ let pr_A : (prog,char) ranalist = fun l ->
   (pr_V ++> fun v -> terminal ':' --> terminal '=' -+> pr_CV ++> fun e -> epsilon_res (Affect (v,e)));;
 
 
+let rec pr_I : (prog,char) ranalist = fun l -> l|>
+  (terminal 'w' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
+  ++> fun p -> terminal '}' -+> epsilon_res (While (Var v,p)))
+  +|
+  (terminal 'i' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
+  ++> fun p1 -> terminal '}' --> terminal '{' --> pr_SI ++> fun p2 -> terminal '}' -+> epsilon_res (If (Var v,p1,p2)))
+and pr_SI : (prog,char) ranalist = fun l -> l|> pr_S --> pr_I
+and pr_S : (prog,char) ranalist = fun l -> l|>
+  (pr_A ++> fun a -> terminal ';' -+> pr_S ++> fun s -> epsilon_res (Seq (a,s))) -|
+  (pr_A ++> fun a -> terminal ';' --> pr_I -+> pr_S ++> fun s -> epsilon_res (Seq (a,s))) -|
+  (pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (i,s)));;
 
