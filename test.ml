@@ -30,7 +30,9 @@ On pourrait ainsi écrire un programme WHILEb-- comme :
 
 type var = A | B | C | D;;
 
-type expr = Var of var | Zero | Un;;
+type cons = Zero | Un
+
+type expr = Var of var | Cons of cons;;
 
 type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog * prog | While of expr * prog;;
 
@@ -59,7 +61,7 @@ WHILEb--. Utiliser des combinateurs d'analyseurs *)
 (* Le type des aspirateurs de listes de caractères  *)
 type analist = char list -> char list
 
-type 'term analist = 'term list -> 'term list
+(*type 'term analist = 'term list -> 'term list*)
 exception Echec
 
 (* terminal constant *)
@@ -191,7 +193,7 @@ let rec pa_I = fun l -> l|>
    -|
      terminal 'i' --> terminal '(' --> pa_V --> terminal ')' --> terminal '{' --> pa_SI --> terminal '}'
    --> terminal '{' --> pa_SI --> terminal '}'
-and  pa_SI = fun l -> l|>  pa_S --> pa_I
+and  pa_SI = fun l -> l|>  pa_S -| pa_I
 and  pa_S = fun l -> l|>
    (pa_A  --> terminal ';' --> pa_S) -|
    (pa_A --> terminal ';' --> pa_I --> pa_S) -|
@@ -211,33 +213,39 @@ type expr = Var of var | Zero | Un;;
 type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog * prog | While of expr * prog;;*)
 
 
-let pr_C : (expr,char) ranalist = fun l ->
+let pr_C : (cons,char) ranalist = fun l ->
   l|>
   (terminal '1' -+> epsilon_res Un) +| (terminal '0' -+> epsilon_res Zero);;
 
-(*let pr_C : (int,char) ranalist = fun l ->
-  l|>
-  (terminal '1' -+> epsilon_res 1) +| (terminal '0' -+> epsilon_res 0);;*)
 
 
-let pr_V : (expr,char) ranalist = fun l ->
+
+let pr_V : (var,char) ranalist = fun l ->
  l|>
-  (terminal 'a' -+> epsilon_res (Var(A))) +| (terminal 'b'  -+> epsilon_res (Var(B))) +|
-    (terminal 'c'  -+> epsilon_res (Var(C))) +| (terminal 'd'  -+> epsilon_res (Var(D))) ;;
+  (terminal 'a' -+> epsilon_res A) +| (terminal 'b'  -+> epsilon_res B) +|
+    (terminal 'c'  -+> epsilon_res C) +| (terminal 'd'  -+> epsilon_res D) ;;
 
 
-(*let pr_V : (char,char) ranalist = fun l ->
- l|>
-  (terminal 'a' -+> epsilon_res 'a') +| (terminal 'b'  -+> epsilon_res 'b') +|
-    (terminal 'c'  -+> epsilon_res 'c') +| (terminal 'd'  -+> epsilon_res 'c') ;;*)
+
 
  let pr_CV : (expr,char) ranalist  = fun l -> l|>
-                                                pr_C +| pr_V ;;
+   (pr_C ++> fun c -> epsilon_res (Cons c)) +| (pr_V ++> fun v -> epsilon_res (Var v)) ;;
 
 
     
 
  
-let pr_A  = fun l -> l|>
-                      (pr_V +-> terminal ':'  +-> terminal '=' ++> (fun v -> pr_CV)) ;;
+let pr_A : (prog, char) ranalist  = fun l -> l|>
+  ((pr_V +-> terminal ':'  +-> terminal '=' ++> pr_CV) --> fun e -> espilon_res Affect(v,e)) ;;
 
+
+let rec pr_I = fun l -> l|>
+   (terminal_res 'w'  --> terminal '(' -+> pr_V --> terminal ')'--> terminal '{' --> pr_SI --> terminal '}' ++> fun w -> epsilon_res (While(e,p)))
+   +|
+     terminal 'i' -+> fun i -> epsilon_res (If(e,p1,p2)) --> terminal '(' -+> pa_V --> terminal ')' --> terminal '{' -+> pr_SI +-> terminal '}' 
+   --> terminal '{' -+> pr_SI +-> terminal '}'
+and  pr_SI = fun l -> l|>  pr_S ++> fun s -> espilon_res Seq(p1,p2) +| pr_I ++> fun i -> epsilon_res If(e,p1,p2)
+and  pr_S = fun l -> l|>
+   (pr_A  +-> terminal ';' -+> pr_S) -|
+   (pr_A --> terminal ';' --> pr_I --> pr_S) -|
+     ( pr_I --> pr_S);;
