@@ -36,6 +36,8 @@ type expr = Var of var | Cons of cons;;
 
 type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog * prog | While of expr * prog;;
 
+
+
 (*Donner une grammaire décrivant le langage WHILEb-- sans recursivité gauche)*)
 
 (* Question 1.1.2 - 1.1.3
@@ -47,8 +49,7 @@ type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog 
   V :: 'a' | 'b' | 'c' | 'd'
   A :: V.':'.'='.(CV)
   I :: 'w'.'('.V.')'.'{'.(SI).'}' | 'i'.'('.V.')'.'{'.(SI).'}'.'{'.(SI).'}'
-  P :: ε | I | A.P
-  S :: A.';'.S | A.';'.I.S | I.S |ε
+  S :: A.';'.S | A.';'.I.S | I.S | ε 
   CV:: C | V
   SI:: S | I 
 
@@ -115,7 +116,7 @@ let rec pa_I = fun l -> l|>
    -|
      terminal 'i' --> terminal '(' --> pa_V --> terminal ')' --> terminal '{' --> pa_SI --> terminal '}'
    --> terminal '{' --> pa_SI --> terminal '}'
-and  pa_SI = fun l -> l|>  pa_S --> pa_I
+and  pa_SI = fun l -> l|>  pa_S -| pa_I
 and  pa_S = fun l -> l|>
    (pa_A  --> terminal ';' --> pa_S) -|
    (pa_A --> terminal ';' --> pa_I --> pa_S) -|
@@ -139,15 +140,63 @@ let pr_A : (prog,char) ranalist = fun l ->
   (pr_V ++> fun v -> terminal ':' --> terminal '=' -+> pr_CV ++> fun e -> epsilon_res (Affect (v,e)));;
 
 
-let rec pr_I : (prog,char) ranalist = fun l -> l|>
-  (terminal 'w' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
-  ++> fun p -> terminal '}' -+> epsilon_res (While (Var v,p)))
-  +|
-  (terminal 'i' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
-  ++> fun p1 -> terminal '}' --> terminal '{' --> pr_SI ++> fun p2 -> terminal '}' -+> epsilon_res (If (Var v,p1,p2)))
-and pr_SI : (prog,char) ranalist = fun l -> l|> pr_S --> pr_I
-and pr_S : (prog,char) ranalist = fun l -> l|>
-  (pr_A ++> fun a -> terminal ';' -+> pr_S ++> fun s -> epsilon_res (Seq (a,s))) -|
-  (pr_A ++> fun a -> terminal ';' --> pr_I -+> pr_S ++> fun s -> epsilon_res (Seq (a,s))) -|
-  (pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (i,s)));;
+
+
+let rec pr_SI : (prog,char) ranalist = fun l -> l|> pr_S +| pr_I
+  and pr_S : (prog,char) ranalist = fun l -> l|>
+  (pr_A ++> fun a -> terminal ';' -+> pr_S ++> fun s -> epsilon_res (Seq (a,s))) +|
+  (pr_A ++> fun a -> terminal ';' -+> pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (a,Seq (i,s)))) +|
+  (pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (i,s))) +|
+  (epsilon_res Nop)
+  and pr_I : (prog,char) ranalist = fun l -> l|>
+    (terminal 'w' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
+    ++> fun p -> terminal '}' -+> epsilon_res (While (Var v, p)))
+    +|
+    (terminal 'i' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
+    ++> fun p1 -> terminal '}' --> terminal '{' -+> pr_SI ++> fun p2 -> terminal '}' -+> epsilon_res (If (Var v,p1,p2)))
+;;
+  
+
+(*
+  a := 1 ;
+  b := 1 ;
+  c := 1 ;
+  while(a) {
+    if(c) {
+      c := 0 ;
+      a := b
+  } else {
+      b := 0 ;
+      c := a
+  }
+}
+
+*)
+
+
+let list_of_string s =
+  let n = String.length s in
+  let rec boucle i =
+    if i = n then []
+    else s.[i] :: boucle (i+1)
+  in boucle 0
+;;
+
+let test s= pr_SI (list_of_string s);;
+
+let p = test "a:=b;"
+let p1 = test "a:=1;b:=1;c:=1;w(a){i(c){c:=0;a:=b}{b:=0;c:=a}}"
+let p2= test "a:=1;b:=1;c:=1;w(a){i(c){c:=0;a:=b}{b:=0;c:=a}}"
+
+let pa = test "a:=1;b:=1;c:=1;"
+
+let p5 = test "a:=1;c:=1;w(a){c:=0;a:=b}"
+let p6 = test "w(a){}"
+let p7 = test "i(a){b:=1}{}"
+
+(* Le problème vient de l'intérieur des {} après w(a) ou i(a). 
+Lorsqu'on met rien dedans, tout marche bien, comme par exemple:*)
+let p1 = test "a:=1;i(a){}{}"
+let p12 = test "a:=1;w(a){}"
+
 
