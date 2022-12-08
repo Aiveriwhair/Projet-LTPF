@@ -32,7 +32,7 @@ type var = A | B | C | D;;
 
 type cons = Zero | Un;;
 
-type expr = Var of var | Cons of cons | And of expr * expr | Or of expr * expr | Not of expr | Concat of expr * expr | Fin ;;
+type expr = Var of var | Cons of cons | And of expr * expr | Or of expr * expr | Not of expr | Concat of expr * expr | Fin | Trou of prog;;
 
 type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog * prog | While of expr * prog;;
 
@@ -47,11 +47,12 @@ type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog 
   
   C :: '1' | '0' 
   V :: 'a' | 'b' | 'c' | 'd'
+  L :: '\n' | '\t' | ' ' | SI
   A :: V.':'.'='.(CV)
   I :: 'w'.'('.V.')'.'{'.(SI).'}' | 'i'.'('.V.')'.'{'.(SI).'}'.'{'.(SI).'}'
   S :: A.';'.S | A.';'.I.S | I.S | ε 
   CV:: C | V
-  SI:: S | I 
+  SI:: S | I | L
 
 *)
 
@@ -149,26 +150,9 @@ F ::= ’!’.F | CV | ’(’.E.’)’
 
  *)
 
- let rec pr_E : (expr, char) ranalist = fun l -> l|>
- (pr_T ++> fun t -> pr_E' ++> fun e -> epsilon_res (Concat (t,e)))
-and pr_E' : (expr, char) ranalist = fun l -> l|>
- (terminal '+' -+> pr_T ++> fun t -> pr_E' ++> fun e -> epsilon_res (Or (t,e))) +|
- (epsilon_res Fin)
-and pr_T : (expr, char) ranalist = fun l -> l|>
- (pr_F ++> fun f -> pr_T' ++> fun t -> epsilon_res (Concat (f,t)))
-and pr_T' : (expr, char) ranalist = fun l -> l|>
- (terminal '.' -+> pr_F ++> fun f -> pr_T' ++> fun t -> epsilon_res (And (f,t))) +|
- (epsilon_res Fin)
-and pr_F : (expr, char) ranalist = fun l -> l|>
- (terminal '!' -+> pr_F ++> fun f -> epsilon_res (Not f)) +|
- (pr_CV ++> fun cv -> epsilon_res cv) +|
- (terminal '(' -+> pr_E ++> fun e -> terminal ')' -+> epsilon_res e)
-;;
 
 
-let pr_A : (prog,char) ranalist = fun l ->
-  l|>
-  (pr_V ++> fun v -> terminal ':' --> terminal '=' -+> pr_E ++> fun e -> epsilon_res (Affect (v,e)));;
+
 
 
 
@@ -187,20 +171,54 @@ let pr_A : (prog,char) ranalist = fun l ->
    (terminal 'i' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
   ++> fun p1 -> terminal '}' --> terminal '{' -+> pr_SI ++> fun p2 -> terminal '}' -+> epsilon_res (If (Var v,p1,p2))) *)
 
-let rec pr_SI : (prog,char) ranalist = fun l -> l|> pr_S +| pr_I
+
+let rec pr_L : (prog,char) ranalist = fun l -> l|>
+    (terminal '\n' -+> pr_L) +|
+    (terminal '\t' -+> pr_L) +|
+    (terminal ' ' -+> pr_L) +|
+    pr_SI
+  and pr_SI : (prog,char) ranalist = fun l -> l|> pr_S +| pr_I +| pr_L
   and pr_S : (prog,char) ranalist = fun l -> l|>
   (pr_A ++> fun a -> terminal ';' -+> pr_S ++> fun s -> epsilon_res (Seq (a,s))) +|
     (pr_A ++> fun a -> terminal ';' -+> pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (a,Seq (i,s)))) +|
     (pr_A ++> fun a -> epsilon_res (Seq(a, Nop))) +|
     (pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (i,s))) +|
-  (epsilon_res Nop)
+  (epsilon_res Nop) +|
+  pr_L
   and pr_I : (prog,char) ranalist = fun l -> l|>
     (terminal 'w' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
     ++> fun p -> terminal '}' -+> epsilon_res (While (Var v, p)))
     +|
     (terminal 'i' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
    ++> fun p1 -> terminal '}' --> terminal '{' -+> pr_SI ++> fun p2 -> terminal '}' -+> epsilon_res (If (Var v,p1,p2)))
+    +|
+    pr_L
+  and pr_A : (prog,char) ranalist = fun l ->
+    l|>
+    (pr_V ++> fun v -> terminal ':' --> terminal '=' -+> pr_E ++> fun e -> epsilon_res (Affect (v,e)))
+    +|
+    pr_L
+  and pr_E : (expr, char) ranalist = fun l -> l|>
+    (pr_T ++> fun t -> pr_E' ++> fun e -> epsilon_res (Concat (t,e))) +|
+     pr_L
+   and pr_E' : (expr, char) ranalist = fun l -> l|>
+    (terminal '+' -+> pr_T ++> fun t -> pr_E' ++> fun e -> epsilon_res (Or (t,e))) +|
+    (epsilon_res Fin)
+   and pr_T : (expr, char) ranalist = fun l -> l|>
+    (pr_F ++> fun f -> pr_T' ++> fun t -> epsilon_res (Concat (f,t)))
+   and pr_T' : (expr, char) ranalist = fun l -> l|>
+    (terminal '.' -+> pr_F ++> fun f -> pr_T' ++> fun t -> epsilon_res (And (f,t))) +|
+    (epsilon_res Fin)
+   and pr_F : (expr, char) ranalist = fun l -> l|>
+    (terminal '!' -+> pr_F ++> fun f -> epsilon_res (Not f)) +|
+    (pr_CV ++> fun cv -> epsilon_res cv) +|
+    (terminal '(' -+> pr_E ++> fun e -> terminal ')' -+> epsilon_res e)
 ;;
+   
+
+
+
+
   
 
 (*
@@ -228,10 +246,10 @@ let list_of_string s =
   in boucle 0
 ;;
 
-let test s= pr_SI (list_of_string s);;
+let test s= pr_L (list_of_string s);;
 
 (*Réécrire de vrais gros tests tout jolie mhmmm les chocapik*)
-let p = test "a:=b;"
+let p = test "a:= b;"
 let p1 = test "a:=1;b:=1;c:=1;w(a){i(c){c:=0;a:=b}{b:=0;c:=a}}"
 let p2= test "a:=1;b:=1;c:=1;w(a){i(c){c:=0;a:=b}{b:=0;c:=a}}"
 
