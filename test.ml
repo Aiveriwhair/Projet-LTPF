@@ -140,9 +140,7 @@ let pr_A : (prog,char) ranalist = fun l ->
   (pr_V ++> fun v -> terminal ':' --> terminal '=' -+> pr_CV ++> fun e -> epsilon_res (Affect (v,e)));;
 
 
-
-
-let rec pr_SI : (prog,char) ranalist = fun l -> l|> pr_S +| pr_I
+let rec pr_SI : (prog,char) ranalist = fun l -> l|> pr_I +| pr_S
   and pr_S : (prog,char) ranalist = fun l -> l|>
   (pr_A ++> fun a -> terminal ';' -+> pr_S ++> fun s -> epsilon_res (Seq (a,s))) +|
   (pr_A ++> fun a -> terminal ';' -+> pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (a,Seq (i,s)))) +|
@@ -164,10 +162,10 @@ let rec pr_SI : (prog,char) ranalist = fun l -> l|> pr_S +| pr_I
   while(a) {
     if(c) {
       c := 0 ;
-      a := b
+      a := b 
   } else {
       b := 0 ;
-      c := a
+      c := a 
   }
 }
 
@@ -182,7 +180,7 @@ let list_of_string s =
   in boucle 0
 ;;
 
-let test s= pr_SI (list_of_string s);;
+let test s= pr_I (list_of_string s);;
 
 let p = test "a:=b;"
 let p1 = test "a:=1;b:=1;c:=1;w(a){i(c){c:=0;a:=b}{b:=0;c:=a}}"
