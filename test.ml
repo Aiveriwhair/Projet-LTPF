@@ -195,11 +195,12 @@ let rec pr_SI : (prog,char) ranalist = fun l -> l|> pr_S +| pr_I
     (pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (i,s))) +|
   (epsilon_res Nop)
   and pr_I : (prog,char) ranalist = fun l -> l|>
-    (terminal 'w' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
-    ++> fun p -> terminal '}' -+> epsilon_res (While (Var v, p)))
+    (terminal 'w' --> terminal '(' -+> pr_E ++> fun ev -> terminal ')' --> terminal '{' -+> pr_SI 
+    ++> fun p -> terminal '}' -+> epsilon_res (While ( ev, p)))
     +|
-    (terminal 'i' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
-   ++> fun p1 -> terminal '}' --> terminal '{' -+> pr_SI ++> fun p2 -> terminal '}' -+> epsilon_res (If (Var v,p1,p2)))
+    (terminal 'i' --> terminal '(' -+> pr_E ++> fun ev -> terminal ')' --> terminal '{' -+> pr_SI 
+   ++> fun p1 -> terminal '}' --> terminal '{' -+> pr_SI ++> fun p2 -> terminal '}' -+> epsilon_res (If (ev,p1,p2)))
+  
 ;;
   
 
@@ -232,14 +233,13 @@ let test s= pr_SI (list_of_string s);;
 
 (*Réécrire de vrais gros tests tout jolie mhmmm les chocapik*)
 let p = test "a:=b;"
-let p1 = test "a:=1;b:=1;c:=1;w(a){i(c){c:=0;a:=b}{b:=0;c:=a}}"
-let p2= test "a:=1;b:=1;c:=1;w(a){i(c){c:=0;a:=b}{b:=0;c:=a}}"
+let p1 = test "a:=1;b:=1;c:=1;w(!a){i(c){c:=0;a:=b}{b:=0;c:=a}}"
+let p2= test "a:=1;b:=1;c:=1;w(a){i(!c){c:=0;a:=b}{b:=0;c:=a}}"
 
 let pa = test "a:=1;b:=1;c:=1;"
 
 let p5 = test "a:=1;c:=1;w(a){c:=0;a:=b}"
-let p6 = test "w(a)
-{}"
+let p6 = test "w(!a){}"
 let p7 = test "i(a){b:=1}{}"
 
 
@@ -253,6 +253,7 @@ let p12 = testBool "a+b.0+!1"
 let p13 = testBool "a+b.0+!(1+0)"
 let p14 = testBool "(a+(b.0))+(!1)" 
 
-let test_total s = pr_SI (list_of_string s);;
 
+(* type expr = Var of var | Cons of cons | And of expr * expr | Or of expr * expr | Not of expr | Concat of expr * expr | Fin ;;
 
+type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog * prog | While of expr * prog;; *)

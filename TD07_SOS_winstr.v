@@ -321,25 +321,40 @@ Lemma SOS_corps_carre_inter n i :
   SOS (Inter (Seq corps_carre i) (invar_cc n)) (Inter i (invar_cc (S n))).
 Proof.
   apply SOS_seq.
-Admitted.
+  apply SOS_corps_carre.
+Qed.
 
 Lemma eqnatb_refl : forall n, eqnatb n n = true.
 Proof.
 Admitted.
 
-(** Réutiliser les lemmes précédents (facile). *)
+(** Réutiliser les lemmes précédents (facile). JEREM *)
 Lemma SOS_Pcarre_tour :
   forall n i, eqnatb i n = false ->
   SOS (Inter (Pcarre n) (invar_cc i)) (Inter (Pcarre n) (invar_cc (S i))).
 Proof.
-Admitted.
-Definition PC2 := Seq corps_carre PC0.
+   intros. cbv[Pcarre]. eapply SOS_again.
+   { eapply SOS_While. }
+   eapply SOS_again.
+   { eapply SOS_If_true. cbn. rewrite H. cbn. reflexivity. }
+   apply SOS_corps_carre_inter.
+Qed. 
 
-(** Facile *)
+
+(** Facile JEREM *)
 Theorem SOS_Pcarre_n_fini :
   forall n, SOS (Inter (Pcarre n) (invar_cc n)) (Final (invar_cc n)).
 Proof.
-Admitted.
+  intros.
+  cbv[Pcarre]. eapply SOS_again.
+  { eapply SOS_While. }
+  eapply SOS_again.
+  { eapply SOS_If_false. cbn. rewrite eqnatb_refl. cbn. reflexivity. }
+  eapply SOS_again.
+  { eapply SOS_Skip. }
+  eapply SOS_stop.
+Qed.
+
 
 Theorem SOS_Pcarre_2_fin_V2 : SOS (Inter Pcarre_2 [0;0;1]) (Final [2;4;5]).
 Proof.
@@ -357,14 +372,26 @@ Lemma SOS_Pcarre_inf_tour :
   forall i,
   SOS (Inter Pcarre_inf (invar_cc i)) (Inter Pcarre_inf (invar_cc (S i))).
 Proof.
-Admitted.
+  intros.
+  cbv[Pcarre_inf]. eapply SOS_again.
+  { eapply SOS_While. }
+  eapply SOS_again.
+  { eapply SOS_If_true. cbn. reflexivity. }
+  apply SOS_corps_carre_inter.
+Qed.
 
 Theorem SOS_Pcarre_inf_n :
   forall i,
   SOS (Inter Pcarre_inf [0; 0; 1]) (Inter Pcarre_inf (invar_cc i)).
 Proof.
-Admitted.
-
+  intro i.
+  induction i as [|].
+  apply SOS_stop.
+  eapply SOS_trans.
+  + apply IHi.
+  + apply SOS_Pcarre_inf_tour.
+Qed.  
+  
 (** Énoncer et démontrer le théorème général pour Pcarre *)
 
 (* ========================================================================== *)
