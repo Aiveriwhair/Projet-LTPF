@@ -358,7 +358,11 @@ Qed.
 
 Lemma eqnatb_refl : forall n, eqnatb n n = true.
 Proof.
-Admitted.
+  intros.
+  induction n.
+  - cbn. reflexivity.
+  - apply IHn.
+Qed.
 
 (*******************************************************************
 Pour tout entiers n m,
