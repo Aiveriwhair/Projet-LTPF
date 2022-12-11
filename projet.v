@@ -449,10 +449,19 @@ Qed.
 
 (** * II *)
 
-
 (** ** Définir une version fonctionnelle de SOS_1 *)
-Fixpoint f_SOS_1 (i : winstr) (s : state) : config.
-Admitted.
+Fixpoint f_SOS_1 (i : winstr) (s : state) : config :=
+  match i with
+  | Skip => Final s
+  | Assign x a => Final (update s x (evalA a s))
+  | Seq i1 i2 => let c1:=f_SOS_1 i1 s in
+                 match c1 with
+                 | Inter i1' s' => Inter (Seq i1' i2) s'
+                 | Final s' => Inter i2 s'
+                 end
+  | If b i1 i2 => if evalB b s then Inter i1 s else Inter i2 s
+  | While b i => Inter (If b (Seq i (While b i)) Skip) s
+end.
 
 (** ** Utilisation de f_SOS_1 pour éviter les eapply SOS_again *)
 
@@ -464,6 +473,8 @@ Eval cbn in (f_SOS_1 PC0 [0;0;1]).
 
 Definition PC2 := Seq corps_carre PC0.
 Definition PC1 := If (Bnot (Beqnat Ir (Aco 2))) PC2 Skip.
+Definition PC3 := Seq (Seq incrX incrY) PC0.
+Definition PC4 := Seq incrY PC0.
 
 (** On vérifie la progression *)
 Fact fa1 : f_SOS_1 PC0 [0;0;1] = Inter PC1 [0;0;1]. reflexivity. Qed.
@@ -475,12 +486,21 @@ Lemma SOS_Pcarre_2_1er_tour_V1 :
   SOS (Inter Pcarre_2 [0;0;1]) (Inter Pcarre_2 [1; 1; 3]).
 Proof.
   change Pcarre_2 with PC0.
-  apply SOS_again with (Inter PC1 [0;0;1]).
+  apply SOS_again with (f_SOS_1 PC0 [0; 0; 1]).
   { apply SOS_While. }
-  { eapply SOS_again.
-    - apply SOS_If_true. cbn. reflexivity.
-    - eapply SOS_again. cbv [PC2]. 
-Admitted. 
+  apply SOS_again with (f_SOS_1 PC1 [0;0;1]).
+  { apply SOS_If_true. reflexivity. }
+  cbn.
+  apply SOS_again with (f_SOS_1 PC2 [0;0;1]).
+  { apply SOS_Seqi. apply SOS_Seqf. apply SOS_Assign. }
+  cbn.
+  apply SOS_again with (f_SOS_1 PC3 [1;0;1]).
+  { apply SOS_Seqi. apply SOS_Seqf. apply SOS_Assign. }
+  cbn.
+  apply SOS_again with (f_SOS_1 PC4 [1;1;1]).
+  { apply SOS_Seqf. apply SOS_Assign. }    
+  apply SOS_stop.
+Qed.
 
 (** ** Théorèmes généraux reliant SOS_1 et f_SOS_1 *)
 
