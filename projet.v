@@ -261,7 +261,18 @@ où Pcarre_2 peut être exécuté en partant d’un état avec i = 2, x = 4 et y
  ****************************************************************************)
 Lemma SOS_Pcarre_2_2e_tour : SOS (Inter Pcarre_2 [1; 1; 3]) (Inter Pcarre_2 [2; 4; 5]).
 Proof.
-Admitted.
+    eapply SOS_again.
+  { apply SOS_While. }
+  eapply SOS_again. 
+  {apply SOS_If_true. cbn. reflexivity. }
+  eapply SOS_again.
+  {cbv[corps_carre]. apply SOS_Seqi. apply SOS_Seqf. cbv[incrI]. apply SOS_Assign. }
+  eapply SOS_again.
+  { apply SOS_Seqi. apply SOS_Seqf. cbv[incrX]. apply SOS_Assign. }
+  eapply SOS_again.
+  { apply SOS_Seqf. cbn. cbv[incrY]. apply SOS_Assign. }
+  eapply SOS_stop.
+Qed.
 
 (****************************************************************************
 Ce théorème montre que Pcarre_2 mène d’un état avec i = 2, x = 4 et y = 5 à un état final avec i = 2, x = 4 et y = 5
