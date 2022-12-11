@@ -240,6 +240,10 @@ Proof.
   eapply SOS_stop.
 Qed.
 
+(****************************************************************************
+Ce théorème montre que Pcarre_inf mène d’un état avec i = 0, x = 0 et y = 1 à une configuration intermédiaire
+où Pcarre_inf peut être exécuté en partant d’un état avec i = 1, x = 1 et y = 3.
+ ****************************************************************************)
 Theorem SOS_Pcarre_inf_1er_tour : SOS (Inter Pcarre_inf [0;0;1]) (Inter Pcarre_inf [1; 1; 3]).
 Proof.
   eapply SOS_again.
