@@ -32,11 +32,11 @@ type var = A | B | C | D;;
 
 type cons = Zero | Un;;
 
-type expr = Var of var | Cons of cons | And of expr * expr | Or of expr * expr | Not of expr | Concat of expr * expr | Fin ;;
+type expr = Var of var | Cons of cons | And of expr * expr | Or of expr * expr | Not of expr  | Fin ;;
 
 type prog = Nop | Affect of var * expr | Seq of prog * prog | If of expr * prog * prog | While of expr * prog;;
 
-
+type state = (var*int) list;;
 
 (*Donner une grammaire décrivant le langage WHILEb-- sans recursivité gauche)*)
 
@@ -150,14 +150,24 @@ F ::= ’!’.F | CV | ’(’.E.’)’
  *)
 
  let rec pr_E : (expr, char) ranalist = fun l -> l|>
- (pr_T ++> fun t -> pr_E' ++> fun e -> epsilon_res (Concat (t,e)))
+ (pr_T ++> fun t -> pr_E' ++> fun e -> match e with
+                                       |Fin -> epsilon_res t
+                                       |_ -> epsilon_res (Or (t,e)))
+
+                                                                              
 and pr_E' : (expr, char) ranalist = fun l -> l|>
- (terminal '+' -+> pr_T ++> fun t -> pr_E' ++> fun e -> epsilon_res (Or (t,e))) +|
+  (terminal '+' -+> pr_T ++> fun t -> pr_E' ++> fun e -> match e with
+                                                         |Fin -> epsilon_res t                                                                             |_ ->  epsilon_res (Or (t,e)))
+  +|
  (epsilon_res Fin)
 and pr_T : (expr, char) ranalist = fun l -> l|>
- (pr_F ++> fun f -> pr_T' ++> fun t -> epsilon_res (Concat (f,t)))
+ (pr_F ++> fun f -> pr_T' ++> fun t -> match t with
+                                       |Fin -> epsilon_res f
+                                       |_ -> epsilon_res (And (f,t)))
 and pr_T' : (expr, char) ranalist = fun l -> l|>
- (terminal '.' -+> pr_F ++> fun f -> pr_T' ++> fun t -> epsilon_res (And (f,t))) +|
+ (terminal '.' -+> pr_F ++> fun f -> pr_T' ++> fun t -> match t with 
+                                                        |Fin -> epsilon_res f                                                                             |_ -> epsilon_res (And (f,t)))
+ +|
  (epsilon_res Fin)
 and pr_F : (expr, char) ranalist = fun l -> l|>
  (terminal '!' -+> pr_F ++> fun f -> epsilon_res (Not f)) +|
@@ -173,19 +183,6 @@ let pr_A : (prog,char) ranalist = fun l ->
 
 
 
- (* let rec pr_SI : (prog,char) ranalist = fun l -> l|> pr_S +| pr_I
- and pr_S : (prog,char) ranalist = fun l -> l|>
- (pr_A ++> fun a -> terminal ';' -+> pr_S ++> fun s -> epsilon_res (Seq (a,s))) +|
-   (pr_A ++> fun a -> terminal ';' -+> pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (a,Seq (i,s)))) +|
-   (pr_A ++> fun a -> epsilon_res (Seq(a, Nop))) +|
-   (pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (i,s))) +|
- (epsilon_res Nop)
- and pr_I : (prog,char) ranalist = fun l -> l|>
-   (terminal 'w' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
-   ++> fun p -> terminal '}' -+> epsilon_res (While (Var v, p)))
-   +|
-   (terminal 'i' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
-  ++> fun p1 -> terminal '}' --> terminal '{' -+> pr_SI ++> fun p2 -> terminal '}' -+> epsilon_res (If (Var v,p1,p2))) *)
 
 let rec pr_SI : (prog,char) ranalist = fun l -> l|> pr_S +| pr_I
   and pr_S : (prog,char) ranalist = fun l -> l|>
@@ -195,11 +192,11 @@ let rec pr_SI : (prog,char) ranalist = fun l -> l|> pr_S +| pr_I
     (pr_I ++> fun i -> pr_S ++> fun s -> epsilon_res (Seq (i,s))) +|
   (epsilon_res Nop)
   and pr_I : (prog,char) ranalist = fun l -> l|>
-    (terminal 'w' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
-    ++> fun p -> terminal '}' -+> epsilon_res (While (Var v, p)))
+    (terminal 'w' --> terminal '(' -+> pr_E ++> fun cond -> terminal ')' --> terminal '{' -+> pr_SI 
+    ++> fun p -> terminal '}' -+> epsilon_res (While (cond, p)))
     +|
-    (terminal 'i' --> terminal '(' -+> pr_V ++> fun v -> terminal ')' --> terminal '{' -+> pr_SI 
-   ++> fun p1 -> terminal '}' --> terminal '{' -+> pr_SI ++> fun p2 -> terminal '}' -+> epsilon_res (If (Var v,p1,p2)))
+    (terminal 'i' --> terminal '(' -+> pr_E ++> fun cond -> terminal ')' --> terminal '{' -+> pr_SI 
+   ++> fun p1 -> terminal '}' --> terminal '{' -+> pr_SI ++> fun p2 -> terminal '}' -+> epsilon_res (If (cond,p1,p2)))
 ;;
   
 
@@ -230,23 +227,22 @@ let list_of_string s =
 
 let test s= pr_SI (list_of_string s);;
 
-(*Réécrire de vrais gros tests tout jolie mhmmm les chocapik*)
+(*Test Whileb *)
 let p = test "a:=b;"
-let p1 = test "a:=1;b:=1;c:=1;w(a){i(c){c:=0;a:=b}{b:=0;c:=a}}"
-let p2= test "a:=1;b:=1;c:=1;w(a){i(c){c:=0;a:=b}{b:=0;c:=a}}"
+let p1 = test "a:=1;b:=1;c:=!1;w(a){i(c){c:=0;a:=a+b}{b:=0;c:=a}}"
+let p2= test "a:=1;b:=1;c:=1;w(!a){i(!c){c:=0;a:=b}{b:=0;c:=a}}"
 
 let pa = test "a:=1;b:=1;c:=1;"
 
 let p5 = test "a:=1;c:=1;w(a){c:=0;a:=b}"
-let p6 = test "w(a)
-{}"
-let p7 = test "i(a){b:=1}{}"
+let p6 = test "w(a){}"
+let p7 = test "a:=1;i(a){b:=1}{}"
 
 
 
 let testBool s = pr_E (list_of_string s);;
-let p8 = testBool "a"
-let p9 = testBool "a+b"
+let p8 = testBool "!a"
+let p9 = testBool "a.b"
 let p10 = testBool "a+b.c"
 let p11 = testBool "a+b.c.d"
 let p12 = testBool "a+b.0+!1"
@@ -255,4 +251,103 @@ let p14 = testBool "(a+(b.0))+(!1)"
 
 let test_total s = pr_SI (list_of_string s);;
 
+let s = [(A,1);(B,0)];;
 
+let rec (get : var -> state -> int) = fun c s ->
+  match s with
+  |(var,value) :: suite -> if var=c then value else get c suite
+  |[] -> raise Echec;;
+
+let test = get A s;; 
+
+
+
+let rec (evalA : expr -> state ->  int) = fun e s ->
+  match e with
+  |Cons Zero -> 0
+  |Cons Un -> 1
+  |Var x -> get x s
+  |And(e1,e2) -> let a=evalA e1 s in
+                 let b=evalA e2 s in
+                 if a=b then 1 else 0
+
+  |Or(e1,e2) ->  let a=evalA e1 s in
+                 let b=evalA e2 s in
+                 if a=1||b=1 then 1 else 0
+  |Not(f) -> let a=evalA f s in
+             if a=1 then 0 else 1
+
+  |Fin -> raise Echec
+ ;;
+
+
+ let rec (update: state -> int -> var -> state) = fun s i v ->
+   match s with
+   | [] -> (v,i) :: []
+   | (var,value) :: suite -> if var=v then (v,i)::suite else (var,value)::(update suite i v)
+
+   ;;
+  
+
+
+let rec (evalW : prog -> state -> state) = fun p s ->
+  match p with
+  | Nop -> s
+  | Affect(var,exp) -> update s (evalA exp s) var
+  | Seq(prog1,prog2) -> if prog1=Nop
+                        then evalW prog2 s
+                        else let s1 = evalW prog1 s in
+                             evalW prog2 s1
+  | If(cond,prog1,prog2) -> let evalcond=evalA cond s in
+                            if evalcond=1 then evalW prog1 s
+                                          else evalW prog2 s
+
+
+ |While(cond,prog1) -> let evalcond=evalA cond s in
+                       if evalcond=1
+                       then let s1= evalW prog1 s in
+                            evalW (While(cond,prog1)) s1
+                       else s;;
+
+(* Test sur les affectations *)
+let resultp7 = let (exp,c)=p7 in evalW exp [];;
+
+(* Test différents programmes *)
+
+
+let list_of_string s =
+  let n = String.length s in
+  let rec boucle i =
+    if i = n then []
+    else s.[i] :: boucle (i+1)
+  in boucle 0
+;;
+
+let test s= pr_SI (list_of_string s);;
+
+(* Exécution else *)
+let test_prog1 = test "a:=0;b:=1;c:=1;i(!c){c:=0;a:=b}{b:=0;c:=a}"
+
+let result1 =  let (exp,c)=test_prog1 in evalW exp [];;
+
+
+(* Exécution then *)
+let test_prog2 = test "a:=0;b:=1;c:=1;i(c){c:=0;a:=b}{b:=0;c:=a}"
+
+let result2 =  let (exp,c)=test_prog2 in evalW exp [];;
+
+
+(* Test while avec passage 2 fois dans la boucle, une fois dans le else puis dans le then *)
+let test_prog3= test "a:=0;b:=1;c:=1;w(!a){i(!c){c:=0;a:=1}{b:=0;c:=a}}"
+
+let result3 =  let (exp,c)=test_prog3 in evalW exp [];;
+
+
+(* Test booléen *)
+
+let test_prog4= test "a:=0;b:=1;c:=1;w(!a){i(c.b){c:=0;a:=1}{b:=0;c:=a}}"
+let result4 =  let (exp,c)=test_prog4 in evalW exp [];;
+
+
+let test_prog5= test "a:=0;b:=0;c:=1;w(!a){i(a+b){c:=0;a:=1}{b:=0;c:=a;a:=1}}"
+let result5 =  let (exp,c)=test_prog5 in evalW exp [];;
